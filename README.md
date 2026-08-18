@@ -22,6 +22,7 @@ mH7#qL2!xP9@vK4z
 - Custom character exclusions
 - Passphrase mode with an embedded word list and custom separators
 - Entropy estimation with a readable strength label
+- Interactive terminal interface (`--interactive`)
 - JSON output for scripting
 - Quiet output for shell pipelines
 - Cross-platform, dependency-free single binary
@@ -72,6 +73,7 @@ passgen [flags]
 | `--strength` | | `false` | Show entropy estimate and strength label |
 | `--json` | | `false` | Print results as JSON |
 | `--quiet` | `-q` | `false` | Print only generated values |
+| `--interactive` | `-i` | `false` | Start the interactive terminal interface |
 | `--version` | | | Print the passgen version |
 | `--help` | `-h` | | Show the help screen |
 
@@ -131,7 +133,52 @@ passgen --length 20 --strength
 # Machine readable output
 passgen --count 2 --json
 passgen --count 2 --json --strength
+
+# Interactive terminal interface
+passgen --interactive
 ```
+
+## Interactive mode
+
+`passgen --interactive` (or `-i`) opens a menu-driven terminal interface for
+people who would rather not memorise flags. It is line based and built entirely
+on the standard library, so it behaves the same on Windows, Linux and macOS —
+no curses library and no extra dependencies.
+
+```text
+$ passgen --interactive
+
+passgen v1.0.0 - interactive mode
+
+  mode        password
+  length      16
+  count       1
+  categories  lowercase, uppercase, numbers, symbols
+  ambiguous   allowed
+  exclude     (none)
+  entropy     103.1 bits (Very Strong)
+
+  [1] mode  [2] length  [3] count  [4] categories  [5] ambiguous  [6] exclude
+  [g] generate  [r] reset  [h] help  [q] quit
+
+> g
+
+  generated:
+    mH7#qL2!xP9@vK4z
+```
+
+- The entropy line updates live as you change settings.
+- Invalid values are rejected with the reason and you are asked again, so the
+  session never ends because of a typo.
+- Selections that would leave nothing to generate from (for example excluding
+  every digit while only numbers are enabled) are rolled back automatically.
+- Switching to passphrase mode swaps the panel to word count and separator.
+- `q`, `quit`, `exit` or Ctrl-D leave the session with exit code 0.
+- Colors are used only when writing to a real terminal, and the `NO_COLOR`
+  environment variable is honoured.
+- `--interactive` cannot be combined with `--json` or `--quiet`, since those
+  formats are meant for scripts.
+
 
 Example strength output:
 
@@ -212,6 +259,7 @@ make vet      # run go vet
 make fmt      # format the source
 make check    # format check + vet + tests
 make run      # go run ./cmd/passgen
+make tui      # go run ./cmd/passgen --interactive
 make cover    # coverage profile and summary
 make clean    # remove build artifacts
 ```
@@ -224,6 +272,7 @@ make clean    # remove build artifacts
 ├── internal/cli/                # flag parsing and output formatting
 ├── internal/config/             # configuration model and validation
 ├── internal/generator/          # secure random, charsets, password/passphrase, strength
+├── internal/tui/                # interactive terminal interface
 └── internal/wordlist/           # embedded passphrase word list
 ```
 

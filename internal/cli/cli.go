@@ -13,6 +13,7 @@ import (
 
 	"github.com/yourusername/passgen/internal/config"
 	"github.com/yourusername/passgen/internal/generator"
+	"github.com/yourusername/passgen/internal/tui"
 )
 
 // Version is the released version of passgen. It can be overridden at build
@@ -40,21 +41,22 @@ type options struct {
 	strength         bool
 	jsonOut          bool
 	quiet            bool
+	interactive      bool
 	version          bool
 }
 
 // Run parses args, generates the requested secrets and writes them to stdout.
-// Any error is reported on stderr and also returned, so callers only need to
-// decide the exit code.
-func Run(args []string, stdout, stderr io.Writer) error {
-	if err := run(args, stdout); err != nil {
+// stdin is only read by the interactive interface. Any error is reported on
+// stderr and also returned, so callers only need to decide the exit code.
+func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	if err := run(args, stdin, stdout); err != nil {
 		fmt.Fprintln(stderr, "error:", err)
 		return err
 	}
 	return nil
 }
 
-func run(args []string, stdout io.Writer) error {
+func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	opts, fs, err := parseArgs(args)
 	if err != nil {
 		if errors.Is(err, errHelpRequested) {
@@ -68,6 +70,13 @@ func run(args []string, stdout io.Writer) error {
 		return writeLine(stdout, fmt.Sprintf("passgen v%s", Version))
 	}
 
+	if opts.interactive {
+		if err := checkInteractiveFlags(fs); err != nil {
+			return err
+		}
+		return tui.Run(stdin, stdout, Version)
+	}
+
 	cfg, err := buildConfig(opts, fs)
 	if err != nil {
 		return err
@@ -78,6 +87,23 @@ func run(args []string, stdout io.Writer) error {
 		return err
 	}
 	return writeOutput(stdout, cfg, secrets)
+}
+
+// checkInteractiveFlags rejects flags that cannot be combined with the
+// interactive interface, which manages its own output format.
+func checkInteractiveFlags(fs *flag.FlagSet) error {
+	set := explicitFlags(fs)
+	conflicts := map[string]string{
+		"json":  "--json",
+		"quiet": "--quiet",
+		"q":     "--quiet",
+	}
+	for _, name := range []string{"json", "quiet", "q"} {
+		if set[name] {
+			return fmt.Errorf("--interactive cannot be combined with %s", conflicts[name])
+		}
+	}
+	return nil
 }
 
 func parseArgs(args []string) (options, *flag.FlagSet, error) {
@@ -107,6 +133,8 @@ func parseArgs(args []string) (options, *flag.FlagSet, error) {
 	fs.BoolVar(&opts.jsonOut, "json", false, "print results as JSON")
 	fs.BoolVar(&opts.quiet, "quiet", false, "print only generated values")
 	fs.BoolVar(&opts.quiet, "q", false, "print only generated values (shorthand)")
+	fs.BoolVar(&opts.interactive, "interactive", false, "start the interactive terminal interface")
+	fs.BoolVar(&opts.interactive, "i", false, "start the interactive terminal interface (shorthand)")
 	fs.BoolVar(&opts.version, "version", false, "print the passgen version")
 
 	if err := fs.Parse(args); err != nil {
@@ -298,6 +326,7 @@ FLAGS
       --strength          show an entropy estimate and strength label
       --json              print results as JSON
   -q, --quiet             print only generated values
+  -i, --interactive       start the interactive terminal interface
       --version           print the passgen version
   -h, --help              show this help
 
@@ -318,6 +347,7 @@ EXAMPLES
   passgen --passphrase --words 6 --separator "_"
   passgen --length 20 --strength
   passgen --count 2 --json
+  passgen --interactive
 
 NOTE
   Entropy values are estimates based on the size of the generation space, not a

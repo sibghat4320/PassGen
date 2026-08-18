@@ -11,8 +11,14 @@ import (
 // resulting error.
 func runCLI(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
+	return runCLIWithInput(t, "", args...)
+}
+
+// runCLIWithInput is runCLI with scripted stdin, used for interactive mode.
+func runCLIWithInput(t *testing.T, stdin string, args ...string) (string, string, error) {
+	t.Helper()
 	var stdout, stderr bytes.Buffer
-	err := Run(args, &stdout, &stderr)
+	err := Run(args, strings.NewReader(stdin), &stdout, &stderr)
 	return stdout.String(), stderr.String(), err
 }
 
@@ -281,10 +287,48 @@ func TestRunHelp(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected help on stdout only, stderr was %q", stderr)
 	}
-	for _, want := range []string{"USAGE", "FLAGS", "EXAMPLES", "--passphrase", "--json"} {
+	for _, want := range []string{"USAGE", "FLAGS", "EXAMPLES", "--passphrase", "--json", "--interactive"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("help output is missing %q", want)
 		}
+	}
+}
+
+func TestRunInteractive(t *testing.T) {
+	stdout, _, err := runCLIWithInput(t, "g\nq\n", "--interactive")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "interactive mode") {
+		t.Fatalf("expected the interactive screen, got %q", stdout)
+	}
+}
+
+func TestRunInteractiveShorthand(t *testing.T) {
+	stdout, _, err := runCLIWithInput(t, "q\n", "-i")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stdout, "interactive mode") {
+		t.Fatalf("expected the interactive screen, got %q", stdout)
+	}
+}
+
+func TestRunInteractiveConflicts(t *testing.T) {
+	for _, args := range [][]string{
+		{"--interactive", "--json"},
+		{"--interactive", "--quiet"},
+		{"--interactive", "-q"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			_, stderr, err := runCLIWithInput(t, "q\n", args...)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if !strings.Contains(stderr, "cannot be combined") {
+				t.Fatalf("expected a conflict message, got %q", stderr)
+			}
+		})
 	}
 }
 

@@ -17,6 +17,15 @@
       "args": ["--length", "24", "--count", "3", "--strength"]
     },
     {
+      "name": "Run passgen (interactive)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/passgen",
+      "args": ["--interactive"],
+      "console": "integratedTerminal"
+    },
+    {
       "name": "Debug package tests",
       "type": "go",
       "request": "launch",

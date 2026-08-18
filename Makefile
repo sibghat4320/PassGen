@@ -6,7 +6,7 @@ PKG := ./cmd/passgen
 BIN_DIR := bin
 COVERAGE := coverage.out
 
-.PHONY: all build test vet fmt fmt-check race cover check run clean
+.PHONY: all build test vet fmt fmt-check race cover check run tui clean
 
 all: check build
 
@@ -37,6 +37,9 @@ check: fmt-check vet test
 
 run:
 	go run $(PKG)
+
+tui:
+	go run $(PKG) --interactive
 
 clean:
 	go clean
