@@ -148,36 +148,47 @@ no curses library and no extra dependencies.
 ```text
 $ passgen --interactive
 
-passgen v1.0.0 - interactive mode
+  ==========================================================
+  passgen v1.0.0                            interactive mode
+  ==========================================================
 
   mode        password
   length      16
   count       1
   categories  lowercase, uppercase, numbers, symbols
-  ambiguous   allowed
-  exclude     (none)
-  entropy     103.1 bits (Very Strong)
 
-  [1] mode  [2] length  [3] count  [4] categories  [5] ambiguous  [6] exclude
-  [g] generate  [r] reset  [h] help  [q] quit
+  strength    103.1 bits  [############....]  Very Strong
 
-> g
+  ----------------------------------------------------------
+  1 mode        2 length      3 count       4 categories
+  g generate    r reset       h help        q quit
+
+  > g
 
   generated:
     mH7#qL2!xP9@vK4z
 ```
 
-- The entropy line updates live as you change settings.
+- The strength row and its meter update live as you change settings.
 - Invalid values are rejected with the reason and you are asked again, so the
   session never ends because of a typo.
-- Selections that would leave nothing to generate from (for example excluding
-  every digit while only numbers are enabled) are rolled back automatically.
+- `4` opens a small category menu; a selection that would leave nothing to
+  generate from is rolled back automatically.
 - Switching to passphrase mode swaps the panel to word count and separator.
 - `q`, `quit`, `exit` or Ctrl-D leave the session with exit code 0.
 - Colors are used only when writing to a real terminal, and the `NO_COLOR`
   environment variable is honoured.
 - `--interactive` cannot be combined with `--json` or `--quiet`, since those
   formats are meant for scripts.
+
+Character exclusions are deliberately not part of the interactive menu, which
+keeps it focused on the settings people change most often. Use the flags for
+those:
+
+```bash
+passgen --exclude-ambiguous
+passgen --exclude "@#$"
+```
 
 
 Example strength output:

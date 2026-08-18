@@ -91,18 +91,6 @@ func (m *model) handle(command string) bool {
 		} else {
 			m.editCategories()
 		}
-	case "5":
-		if m.cfg.Passphrase {
-			m.unknown("5")
-		} else {
-			m.toggleAmbiguous()
-		}
-	case "6":
-		if m.cfg.Passphrase {
-			m.unknown("6")
-		} else {
-			m.editExclusions()
-		}
 	case "g", "generate":
 		m.generate()
 	case "r", "reset":
@@ -175,7 +163,7 @@ func (m *model) editWords() {
 }
 
 func (m *model) editSeparator() {
-	value, ok := m.readLine(fmt.Sprintf("separator (current %q, blank to keep): ", m.cfg.Separator))
+	value, ok := m.subPrompt(fmt.Sprintf("separator (current %q, blank to keep): ", m.cfg.Separator))
 	if !ok {
 		return
 	}
@@ -187,52 +175,21 @@ func (m *model) editSeparator() {
 	m.info(fmt.Sprintf("separator set to %q", value))
 }
 
-func (m *model) toggleAmbiguous() {
-	m.cfg.ExcludeAmbiguous = !m.cfg.ExcludeAmbiguous
-	if err := m.validationError(m.cfg); err != nil {
-		m.cfg.ExcludeAmbiguous = !m.cfg.ExcludeAmbiguous
-		m.warn(err.Error())
-		return
-	}
-	if m.cfg.ExcludeAmbiguous {
-		m.info("ambiguous characters (" + generator.AmbiguousCharacters + ") excluded")
-		return
-	}
-	m.info("ambiguous characters allowed")
-}
-
-func (m *model) editExclusions() {
-	value, ok := m.readLine("characters to exclude (blank clears): ")
-	if !ok {
-		return
-	}
-
-	candidate := m.cfg
-	candidate.Exclude = value
-	if err := m.validationError(candidate); err != nil {
-		m.warn(err.Error())
-		return
-	}
-
-	m.cfg.Exclude = value
-	if value == "" {
-		m.info("custom exclusions cleared")
-		return
-	}
-	m.info(fmt.Sprintf("excluding %q", value))
-}
-
 // editCategories runs a small sub-menu that toggles character categories. At
 // least one category must stay enabled and the resulting set must be usable.
 func (m *model) editCategories() {
 	for {
 		m.println("")
-		m.println(m.p.bold("  character categories"))
+		m.println(indent + m.p.bold("character categories"))
 		m.println(m.categoryLine("1", "lowercase", m.cfg.UseLowercase))
 		m.println(m.categoryLine("2", "uppercase", m.cfg.UseUppercase))
 		m.println(m.categoryLine("3", "numbers", m.cfg.UseNumbers))
 		m.println(m.categoryLine("4", "symbols", m.cfg.UseSymbols))
-		m.println(m.p.dim("  [1-4] toggle   [d] done"))
+		m.println("")
+		m.println(indent + m.menuItems([][2]string{
+			{"1-4", "toggle"}, {"d", "done"},
+		}))
+		m.println("")
 
 		choice, ok := m.readLine("categories> ")
 		if !ok {
@@ -274,7 +231,7 @@ func (m *model) categoryLine(key, name string, enabled bool) string {
 	if enabled {
 		mark = m.p.green("on")
 	}
-	return fmt.Sprintf("    [%s] %-10s %s", key, name, mark)
+	return fmt.Sprintf("    %s  %-12s%s", m.p.cyan(key), name, mark)
 }
 
 // --- generation ---------------------------------------------------------
@@ -287,7 +244,7 @@ func (m *model) generate() {
 	}
 
 	m.println("")
-	m.println("  " + m.p.dim("generated:"))
+	m.println(indent + m.p.dim("generated:"))
 	for _, secret := range secrets {
 		m.println("    " + m.p.bold(secret))
 	}
@@ -296,9 +253,16 @@ func (m *model) generate() {
 
 // --- rendering ----------------------------------------------------------
 
+// Layout constants for the settings panel.
+const (
+	panelWidth = 58
+	indent     = "  "
+	labelWidth = 12
+)
+
 func (m *model) render() {
 	m.println("")
-	m.println(m.p.cyan(fmt.Sprintf("passgen v%s", m.version)) + m.p.dim(" - interactive mode"))
+	m.renderHeader()
 	m.println("")
 
 	if m.cfg.Passphrase {
@@ -307,21 +271,62 @@ func (m *model) render() {
 		m.renderPasswordSettings()
 	}
 
-	m.println("  " + m.p.dim(fmt.Sprintf("%-12s", "entropy")) + m.entropySummary())
 	m.println("")
-
-	if m.cfg.Passphrase {
-		m.println(m.p.dim("  [1] mode  [2] words  [3] count  [4] separator"))
-	} else {
-		m.println(m.p.dim("  [1] mode  [2] length  [3] count  [4] categories  [5] ambiguous  [6] exclude"))
-	}
-	m.println(m.p.dim("  [g] generate  [r] reset  [h] help  [q] quit"))
+	m.renderStrength()
+	m.println("")
+	m.println(indent + m.p.dim(rule('-', panelWidth)))
+	m.renderMenu()
 
 	if m.status != "" {
 		m.println("")
-		m.println("  " + m.status)
+		m.println(indent + m.status)
 	}
 	m.println("")
+}
+
+// renderHeader draws the title bar with the version on the left and the mode on
+// the right, padded to the panel width.
+func (m *model) renderHeader() {
+	title := fmt.Sprintf("passgen v%s", m.version)
+	mode := "interactive mode"
+
+	gap := panelWidth - len(title) - len(mode)
+	if gap < 1 {
+		gap = 1
+	}
+	m.println(indent + m.p.dim(rule('=', panelWidth)))
+	m.println(indent + m.p.bold(m.p.cyan(title)) + strings.Repeat(" ", gap) + m.p.dim(mode))
+	m.println(indent + m.p.dim(rule('=', panelWidth)))
+}
+
+func (m *model) renderMenu() {
+	if m.cfg.Passphrase {
+		m.println(indent + m.menuItems([][2]string{
+			{"1", "mode"}, {"2", "words"}, {"3", "count"}, {"4", "separator"},
+		}))
+	} else {
+		m.println(indent + m.menuItems([][2]string{
+			{"1", "mode"}, {"2", "length"}, {"3", "count"}, {"4", "categories"},
+		}))
+	}
+	m.println(indent + m.menuItems([][2]string{
+		{"g", "generate"}, {"r", "reset"}, {"h", "help"}, {"q", "quit"},
+	}))
+}
+
+// menuItems renders "key label" pairs in evenly spaced columns.
+func (m *model) menuItems(items [][2]string) string {
+	var b strings.Builder
+	for _, item := range items {
+		entry := fmt.Sprintf("%s %s", m.p.cyan(item[0]), item[1])
+		// Pad on the plain text so colored and plain output align identically.
+		padding := 14 - (len(item[0]) + 1 + len(item[1]))
+		if padding < 1 {
+			padding = 1
+		}
+		b.WriteString(entry + strings.Repeat(" ", padding))
+	}
+	return strings.TrimRight(b.String(), " ")
 }
 
 func (m *model) renderPasswordSettings() {
@@ -329,8 +334,6 @@ func (m *model) renderPasswordSettings() {
 	m.setting("length", strconv.Itoa(m.cfg.Length))
 	m.setting("count", strconv.Itoa(m.cfg.Count))
 	m.setting("categories", m.categorySummary())
-	m.setting("ambiguous", boolLabel(m.cfg.ExcludeAmbiguous, "excluded", "allowed"))
-	m.setting("exclude", valueOrNone(m.cfg.Exclude))
 }
 
 func (m *model) renderPassphraseSettings() {
@@ -341,7 +344,7 @@ func (m *model) renderPassphraseSettings() {
 }
 
 func (m *model) setting(name, value string) {
-	m.println("  " + m.p.dim(fmt.Sprintf("%-12s", name)) + value)
+	m.println(indent + m.p.dim(fmt.Sprintf("%-*s", labelWidth, name)) + value)
 }
 
 func (m *model) categorySummary() string {
@@ -365,24 +368,52 @@ func (m *model) categorySummary() string {
 	return strings.Join(names, ", ")
 }
 
-// entropySummary renders the entropy estimate, or the reason it cannot be
-// computed for the current settings.
-func (m *model) entropySummary() string {
+// renderStrength shows the entropy estimate together with a proportional meter,
+// or the reason the estimate cannot be produced.
+func (m *model) renderStrength() {
 	entropy, err := generator.Entropy(m.cfg)
 	if err != nil {
-		return m.p.red(err.Error())
+		m.println(indent + m.p.dim(fmt.Sprintf("%-*s", labelWidth, "strength")) + m.p.red(err.Error()))
+		return
 	}
+
 	label := generator.StrengthLabel(entropy)
-	return fmt.Sprintf("%.1f bits (%s)", entropy, m.p.strengthColor(label))
+	value := fmt.Sprintf("%.1f bits", entropy)
+	line := fmt.Sprintf("%-11s %s  %s", value, m.meter(entropy, label), m.p.strengthColor(label))
+	m.println(indent + m.p.dim(fmt.Sprintf("%-*s", labelWidth, "strength")) + line)
+}
+
+// meterCap is the entropy at which the strength meter is considered full.
+const meterCap = 128
+
+func (m *model) meter(entropy float64, label string) string {
+	const cells = 16
+
+	filled := int(entropy / meterCap * cells)
+	if filled > cells {
+		filled = cells
+	}
+	if filled < 1 {
+		filled = 1
+	}
+	bar := strings.Repeat("#", filled) + strings.Repeat(".", cells-filled)
+	return "[" + m.p.byStrength(label, bar) + "]"
+}
+
+// rule returns a horizontal rule of the requested width.
+func rule(char rune, width int) string {
+	return strings.Repeat(string(char), width)
 }
 
 func (m *model) showHelp() {
 	m.status = strings.Join([]string{
 		m.p.bold("help"),
-		m.p.dim("  numbers pick a setting, [g] generates with the current settings."),
-		m.p.dim("  entropy is an estimate of the generation space, not a guarantee."),
-		m.p.dim("  nothing is stored, logged or sent anywhere."),
-	}, "\n  ")
+		m.p.dim("numbers pick a setting, g generates with the current settings."),
+		m.p.dim("strength is an estimate of the generation space, not a guarantee."),
+		m.p.dim("nothing is stored, logged or sent anywhere."),
+		m.p.dim("character exclusions are available as CLI flags:"),
+		m.p.dim("passgen --exclude-ambiguous --exclude \"@#$\""),
+	}, "\n"+indent+"  ")
 }
 
 // --- helpers ------------------------------------------------------------
@@ -392,7 +423,7 @@ func (m *model) showHelp() {
 // for validation, so the real limits and messages come from config.Validate.
 func (m *model) promptInt(label string, current int, apply func(config.Config, int) config.Config) (int, bool) {
 	for {
-		raw, ok := m.readLine(fmt.Sprintf("%s [%d]: ", label, current))
+		raw, ok := m.subPrompt(fmt.Sprintf("%s [%d]: ", label, current))
 		if !ok {
 			return 0, false
 		}
@@ -428,9 +459,10 @@ func (m *model) validationError(cfg config.Config) error {
 }
 
 // readLine prints prompt and reads one line. The second result is false when
-// the input stream is exhausted.
+// the input stream is exhausted. Prompts are indented so they line up with the
+// settings panel.
 func (m *model) readLine(prompt string) (string, bool) {
-	m.print(prompt)
+	m.print(indent + prompt)
 	if m.err != nil {
 		return "", false
 	}
@@ -438,6 +470,13 @@ func (m *model) readLine(prompt string) (string, bool) {
 		return "", false
 	}
 	return strings.TrimSpace(m.in.Text()), true
+}
+
+// subPrompt asks a follow-up question on its own line, so it never runs into
+// the main "> " prompt the user has just answered.
+func (m *model) subPrompt(prompt string) (string, bool) {
+	m.println("")
+	return m.readLine(prompt)
 }
 
 func (m *model) info(message string) {
@@ -454,7 +493,7 @@ func (m *model) unknown(command string) {
 
 // printWarn reports a problem straight away, used while a sub-prompt is active.
 func (m *model) printWarn(message string) {
-	m.println("  " + m.p.yellow("!  ") + message)
+	m.println(indent + m.p.yellow("!  ") + message)
 }
 
 func (m *model) print(text string) {
@@ -479,18 +518,4 @@ func (m *model) finish() error {
 		return fmt.Errorf("read input: %w", err)
 	}
 	return nil
-}
-
-func boolLabel(value bool, whenTrue, whenFalse string) string {
-	if value {
-		return whenTrue
-	}
-	return whenFalse
-}
-
-func valueOrNone(value string) string {
-	if value == "" {
-		return "(none)"
-	}
-	return value
 }

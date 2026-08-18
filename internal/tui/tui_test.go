@@ -52,9 +52,9 @@ func TestInitialScreen(t *testing.T) {
 		"length",
 		"count",
 		"categories",
-		"entropy",
-		"[g] generate",
-		"[q] quit",
+		"strength",
+		"g generate",
+		"q quit",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("initial screen is missing %q\n%s", want, out)
@@ -192,36 +192,56 @@ func TestCategoryMenuUnknownOption(t *testing.T) {
 	}
 }
 
-func TestToggleAmbiguous(t *testing.T) {
-	out := session(t, "5\n2\n40\ng\nq\n")
-	if !strings.Contains(out, "excluded") {
-		t.Fatalf("expected an exclusion notice, got:\n%s", out)
-	}
-	values := generated(out)
-	if strings.ContainsAny(values[0], generator.AmbiguousCharacters) {
-		t.Fatalf("password %q contains an ambiguous character", values[0])
+func TestToggleAmbiguousIsNotAvailable(t *testing.T) {
+	out := session(t, "5\nq\n")
+	if !strings.Contains(out, `unknown option "5"`) {
+		t.Fatalf("option 5 should no longer exist, got:\n%s", out)
 	}
 }
 
-func TestCustomExclusions(t *testing.T) {
-	out := session(t, "6\n@#$%\n2\n40\ng\nq\n")
-	values := generated(out)
-	if len(values) != 1 {
-		t.Fatalf("expected one password, got %q", values)
+func TestExclusionsAreNotAvailable(t *testing.T) {
+	out := session(t, "6\nq\n")
+	if !strings.Contains(out, `unknown option "6"`) {
+		t.Fatalf("option 6 should no longer exist, got:\n%s", out)
 	}
-	if strings.ContainsAny(values[0], "@#$%") {
-		t.Fatalf("password %q contains an excluded character", values[0])
+	if strings.Contains(out, "ambiguous") || strings.Contains(out, "exclude ") {
+		t.Fatalf("removed settings must not appear in the panel:\n%s", out)
 	}
 }
 
-func TestImpossibleExclusionIsRejected(t *testing.T) {
-	out := session(t, "4\n1\n2\n4\nd\n6\n0123456789\ng\nq\n")
-	if !strings.Contains(out, "number character set is empty") {
-		t.Fatalf("expected an exclusion error, got:\n%s", out)
+func TestPanelShowsOnlySupportedSettings(t *testing.T) {
+	out := session(t, "q\n")
+	for _, unwanted := range []string{"ambiguous", "exclude"} {
+		if strings.Contains(out, unwanted) {
+			t.Fatalf("panel should not mention %q:\n%s", unwanted, out)
+		}
 	}
-	// The rejected exclusion must not be applied, so generation still works.
-	if len(generated(out)) != 1 {
-		t.Fatalf("expected generation to still succeed:\n%s", out)
+}
+
+func TestStrengthMeterIsRendered(t *testing.T) {
+	out := session(t, "q\n")
+	if !strings.Contains(out, "strength") {
+		t.Fatalf("expected a strength row, got:\n%s", out)
+	}
+	if !strings.Contains(out, "[############....]") {
+		t.Fatalf("expected a proportional meter for the default settings, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Very Strong") {
+		t.Fatalf("expected the strength label, got:\n%s", out)
+	}
+}
+
+func TestStrengthMeterFillsForLongPasswords(t *testing.T) {
+	out := session(t, "2\n64\nq\n")
+	if !strings.Contains(out, "[################]") {
+		t.Fatalf("expected a full meter for a 64 character password, got:\n%s", out)
+	}
+}
+
+func TestHelpMentionsExclusionFlags(t *testing.T) {
+	out := session(t, "h\nq\n")
+	if !strings.Contains(out, "--exclude-ambiguous") {
+		t.Fatalf("help should point to the CLI exclusion flags, got:\n%s", out)
 	}
 }
 

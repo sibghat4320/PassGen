@@ -37,15 +37,21 @@ func (p palette) green(text string) string  { return p.wrap(ansiGreen, text) }
 func (p palette) yellow(text string) string { return p.wrap(ansiYellow, text) }
 func (p palette) red(text string) string    { return p.wrap(ansiRed, text) }
 
-// strengthColor maps a strength label onto a palette color.
+// strengthColor colors a strength label according to its severity.
 func (p palette) strengthColor(label string) string {
+	return p.byStrength(label, label)
+}
+
+// byStrength colors arbitrary text (such as the meter bar) using the color that
+// matches the given strength label.
+func (p palette) byStrength(label, text string) string {
 	switch label {
 	case "Very Strong", "Strong":
-		return p.green(label)
+		return p.green(text)
 	case "Moderate":
-		return p.yellow(label)
+		return p.yellow(text)
 	default:
-		return p.red(label)
+		return p.red(text)
 	}
 }
 
