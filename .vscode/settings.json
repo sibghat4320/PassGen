@@ -1,0 +1,16 @@
+{
+  "go.formatTool": "gofmt",
+  "go.useLanguageServer": true,
+  "go.lintOnSave": "package",
+  "go.vetOnSave": "package",
+  "go.testOnSave": false,
+  "[go]": {
+    "editor.formatOnSave": true,
+    "editor.insertSpaces": false,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true
+}

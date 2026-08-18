@@ -1,0 +1,22 @@
+# Compiled binaries
+passgen
+passgen.exe
+bin/
+dist/
+
+# Test and coverage artifacts
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Editor and OS local files
+.vscode/*.local.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
