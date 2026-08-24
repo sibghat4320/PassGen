@@ -1,52 +1,111 @@
 # passgen — Secure password & passphrase generator
 
-passgen is a small, dependency-free command-line tool written in Go that
-produces cryptographically secure passwords and passphrases. It uses
-crypto/rand for all randomness, guarantees inclusion of enabled character
-categories, and provides both machine-friendly JSON output and an interactive
-terminal UI.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Highlights
-- Cryptographically secure (crypto/rand)
-- No third-party runtime dependencies — single static binary
-- Passwords (4–256 chars) and passphrases (3–12 words)
-- Entropy estimation and strength labels
-- JSON output and quiet mode for scripting
-- Cross-platform: macOS, Linux, Windows
+**passgen** is a fast, lightweight command-line tool for generating cryptographically secure passwords and passphrases. Built in Go with zero third-party dependencies, it delivers a single static binary that works everywhere.
 
-Installation
-Clone and build (replace username with your GitHub handle if needed):
+## Features
+
+- 🔐 **Cryptographically secure** — uses `crypto/rand` for all randomness
+- ⚡ **Zero dependencies** — single static binary, no runtime requirements  
+- 🎯 **Flexible generation** — passwords (4–256 chars) and passphrases (3–12 words)
+- 📊 **Entropy estimation** — includes strength labels for generated secrets
+- 🖥️ **Multiple output modes** — interactive TUI, JSON for scripting, quiet mode
+- 🌍 **Cross-platform** — macOS, Linux, Windows
+
+## Installation
+
+### Using `go install`
 
 ```bash
-git clone https://github.com/sibghat4320/password_generator.git
-cd password_generator
+go install github.com/sibghat4320/PassGen/cmd/passgen@latest
+```
+
+### Build from source
+
+```bash
+git clone https://github.com/sibghat4320/PassGen.git
+cd PassGen
 go build -o passgen ./cmd/passgen
 ```
 
-Or install with `go install`:
+The binary works standalone—copy it anywhere or add to your `$PATH`.
+
+## Usage
+
+### Interactive mode (default)
+
+Simply run `passgen` to open the interactive terminal UI where you can customize all options.
 
 ```bash
-go install github.com/sibghat4320/password_generator/cmd/passgen@latest
-```
-
-Quick usage
-```
-# Generate one 16-character password (default)
 passgen
+```
 
-# Generate five 24-character passwords
+### Generate passwords
+
+```bash
+# One 16-character password (default)
+passgen --length 16
+
+# Five 24-character passwords
 passgen --count 5 --length 24
 
-# Generate a 6-word passphrase joined with _
-passgen --passphrase --words 6 --separator _
-
-# Machine readable output
-passgen --count 2 --json
+# Passwords with specific character sets
+passgen --length 20 --no-uppercase  # lowercase + digits + symbols only
 ```
 
-Contributing
-- Clone the repo, run `go test ./...`, and open a PR for changes.
-- Keep changes small and document reasoning in PR descriptions.
+### Generate passphrases
 
-License
-Released under the MIT License. See LICENSE for details.
+```bash
+# One 4-word passphrase
+passgen --passphrase
+
+# Six words joined with underscores
+passgen --passphrase --words 6 --separator _
+
+# Three words with hyphens
+passgen --passphrase --words 3 --separator -
+```
+
+### Machine-readable output
+
+```bash
+# JSON output for scripting
+passgen --count 2 --json
+
+# Quiet mode (output only)
+passgen --quiet
+```
+
+### Full options
+
+```bash
+passgen --help
+```
+
+## Why passgen?
+
+- **No online tools** — keep your secrets on your machine
+- **Audit-friendly** — open source, small codebase (~500 LOC)
+- **Development-ready** — JSON output for integration with scripts and tools
+- **Fast** — generates batches instantly, suitable for automation
+
+## Development
+
+Clone and test locally:
+
+```bash
+git clone https://github.com/sibghat4320/PassGen.git
+cd PassGen
+go test ./...
+go build -o passgen ./cmd/passgen
+```
+
+Contributions welcome! Please:
+- Keep changes focused and well-documented
+- Add tests for new functionality
+- Open an issue or discussion before major refactors
+
+## License
+
+Released under the MIT License. See [LICENSE](LICENSE) for details.
